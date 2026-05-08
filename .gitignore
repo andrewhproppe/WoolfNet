@@ -1,0 +1,13 @@
+*.DS_STORE
+*.pyc
+*.png
+*.html
+*.gif
+*.hdf5
+/woolfnet/artifacts
+/woolfnet/gpt/artifacts
+/woolfnet.egg-info
+/woolfnet/**/*.txt
+/woolfnet/**/*.pt
+/woolfnet/**/*.json
+/woolfnet/**/*.yml

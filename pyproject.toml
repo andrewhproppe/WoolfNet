@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">= 3.12"
+name = "woolfnet"
+version = "0.1"
+description="Training and fine-tuning LLM models on the works of Virginia Woolf."
+dependencies=[
+    "torch==2.5.1",
+    "pandas>=2.2.3",
+    "numpy>=2.2.5",
+    "polars==1.27.1",
+    "deltalake==0.25.5",
+    "pyarrow",
+    "IPython",
+    "tokenizers==0.22.1",
+    "jax==0.8.0",
+    "optax==0.2.6",
+    "flax==0.12.0",
+    "mlflow==3.6.0",
+    "transformers>=4.40.0",
+    "h5py>=3.15.1",
+    "cloudpathlib>=0.23.0",
+    "s3fs",
+]
+
+[project.optional-dependencies]
+test = [
+    "debugpy==1.8.14",
+    "pytest>=8.3.2",
+    "pytest-xdist>=3.6.1",
+]
+
+[project.scripts]
+woolf = "woolfnet.cli:cli"
+
+[tool.ruff]
+include = ["pyproject.toml", "woolfnet/**/*.py", "woolfnet/*.py"]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "D1", "I", "C90"]
+ignore = ["D104", "D107"]
