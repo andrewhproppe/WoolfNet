@@ -22,10 +22,9 @@ COMMAND_MAP = {
     type=click.Choice(choices=["INFO", "DEBUG", "WARNING"]),
     default="INFO",
 )
-@click.option(
-    "--profile", is_flag=True, help="Run simple profiling during program runtime"
-)
-def cli(debug_level: str, profile: bool) -> None:
+@click.option("--profile", is_flag=True, help="Run simple profiling during program runtime")
+@click.option("--debug", is_flag=True, help="Run with debugpy listener.")
+def cli(debug_level: str, profile: bool, debug: bool) -> None:
     """Main cli entrypoint"""
     logging.basicConfig(
         level=debug_level,
@@ -35,6 +34,14 @@ def cli(debug_level: str, profile: bool) -> None:
     if profile:
         RuntimeStatistics()
     mlflow.set_tracking_uri(MLFLOW_LOCAL_URI)
+
+    if debug:
+        import debugpy
+
+        click.echo("Debug mode enabled. Waiting for debugger to attach...")
+        debugpy.listen(("localhost", 5678))
+        debugpy.wait_for_client()
+        click.echo("Debugger attached.")
 
 
 @cli.group()

@@ -9,13 +9,11 @@ from tokenizers import ByteLevelBPETokenizer
 
 from woolfnet.data.utils import WOOLF_BOOKS, clean_raw_text, download_raw_text
 from woolfnet.paths import DATA_DIR
-from woolfnet.utils.general import debug_option
 
 logger = logging.getLogger(__name__)
 
 
 @click.command()
-@debug_option
 def download_raw() -> None:
     """
     Download the raw texts from Project Gutenberg Australia. Compared to the US and
@@ -26,13 +24,11 @@ def download_raw() -> None:
 
 
 @click.command()
-@debug_option
 def clean_raw_data() -> None:
     clean_raw_text()
 
 
 @click.command()
-@debug_option
 @click.option(
     "--style",
     type=click.Choice(choices=["novel", "essay", "both"]),
@@ -64,7 +60,6 @@ def build_corpus(style: List[str]) -> None:
 
 
 @click.command()
-@debug_option
 @click.option(
     "--corpus",
     type=click.Path(path_type=Path),

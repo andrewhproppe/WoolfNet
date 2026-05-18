@@ -3,29 +3,7 @@ General util functions
 """
 
 import atexit
-import functools
 import time
-
-import click
-import debugpy
-
-
-def debug_option(f):
-    """
-    Decorator for click commands to optionally enable debug mode with debugpy.
-    """
-
-    @click.option("--debug", is_flag=True, help="Run with debugpy listener.")
-    @functools.wraps(f)
-    def wrapper(*args, debug, **kwargs):
-        if debug:
-            click.echo("Debug mode enabled. Waiting for debugger to attach...")
-            debugpy.listen(("localhost", 5678))
-            debugpy.wait_for_client()
-            click.echo("Debugger attached.")
-        return f(*args, **kwargs)
-
-    return wrapper
 
 
 class RuntimeStatistics:

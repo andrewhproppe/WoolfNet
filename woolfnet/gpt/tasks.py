@@ -25,14 +25,12 @@ from woolfnet.gpt.training import (
     gpt_training_loop_jax,
     gpt_training_loop_nnx,
 )
-from woolfnet.utils.general import debug_option
 from woolfnet.utils.mlflow import configure_mlflow, make_versioned_model_name
 
 logger = logging.getLogger(__name__)
 
 
 @click.command()
-@debug_option
 @click.option(
     "--model-config",
     type=click.Path(path_type=Path),
@@ -141,7 +139,6 @@ def create_train_step(model, optimizer):
 
 
 @click.command()
-@debug_option
 @click.option(
     "--model-config",
     type=click.Path(path_type=Path),
@@ -217,7 +214,6 @@ def train_jax(model_config: Path, training_config: Path, model_name: str, disabl
 
 
 @click.command()
-@debug_option
 @click.option(
     "--config",
     type=click.Path(path_type=Path),
@@ -304,7 +300,6 @@ def train_jax_nnx(config: Path, disable_logging: bool):
 
 
 @click.command()
-@debug_option
 @click.option(
     "--config",
     type=click.Path(path_type=Path),
@@ -376,7 +371,6 @@ def finetune(config: Path, disable_logging: bool):
 
 
 @click.command()
-@debug_option
 @click.option(
     "--our-model-config",
     type=click.Path(path_type=Path),

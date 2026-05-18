@@ -6,13 +6,11 @@ import click
 from tokenizers import ByteLevelBPETokenizer
 
 from woolfnet.paths import DATA_DIR
-from woolfnet.utils.general import debug_option
 
 logger = logging.getLogger(__name__)
 
 
 @click.command()
-@debug_option
 @click.option(
     "--corpus",
     type=click.Path(path_type=Path),
