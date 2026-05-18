@@ -1,160 +1,175 @@
 # WoolfNet
 
-A GPT-style decoder-only language model trained from scratch on the collected works of Virginia Woolf, sourced from [Project Gutenberg Australia](https://gutenberg.net.au/). Supports three model backends: PyTorch, JAX/Flax Linen (legacy), and JAX/Flax NNX (preferred).
+A small end-to-end project for training, fine-tuning, and serving GPT-style language models on the collected works of Virginia Woolf. Texts are sourced from [Project Gutenberg Australia](https://gutenberg.net.au/).
+
+WoolfNet was originally a personal NLP/JAX learning project. It now wraps three model backends behind a FastAPI service and a Gradio UI, and ships with a Docker setup for reproducible deployment.
+
+## What's in the box
+
+Three model backends are exposed via the same API:
+
+| Name           | Backend                              | Source                                                     |
+| -------------- | ------------------------------------ | ---------------------------------------------------------- |
+| `woolf-scratch`| PyTorch GPT, decoder-only, ~10M params | Trained from scratch on the Woolf corpus (`model.pt`)    |
+| `gpt2`         | HuggingFace GPT-2 small (~124M)      | Pretrained, no fine-tuning                                 |
+| `gpt2-woolf`   | HuggingFace GPT-2 small fine-tuned   | Fine-tuned on the Woolf corpus (`gpt2_finetuned/`)         |
+
+`woolf-scratch` is the small from-scratch model — interesting to read, weak at coherence. `gpt2` is a fluent baseline. `gpt2-woolf` is the most fun: GPT-2's prior with Woolf's vocabulary and cadence on top.
+
+The codebase also keeps two JAX implementations of the same scratch architecture (Flax Linen, legacy; Flax NNX, preferred). The HTTP API exposes only the PyTorch path; JAX training is supported via the CLI.
 
 ## Architecture
 
-The model is a standard GPT-2-style transformer:
+```
+woolfnet/
+├── cli.py                 # Click CLI: data, tokenizer, gpt, serve, ui
+├── config.py              # YAML loader (DotDict, dot-access)
+├── paths.py
+├── api/                   # FastAPI inference server
+│   ├── app.py             # /health, /models, /generate
+│   └── schemas.py
+├── app/                   # Gradio frontend (calls the API over HTTP)
+│   ├── ui.py
+│   └── tasks.py           # `woolf serve`, `woolf ui` CLI entrypoints
+├── inference/
+│   └── loader.py          # `load_backend(name) -> Backend`
+├── configs/inference.yml  # API/UI host + port defaults
+├── data/                  # download, clean, corpus, dataset prep
+├── tokenization/          # BPE tokenizer training
+└── gpt/
+    ├── model.py           # PyTorch GPT (used by API)
+    ├── model_jax.py       # Flax Linen GPT (legacy)
+    ├── model_nnx.py       # Flax NNX GPT (preferred JAX backend)
+    ├── training.py        # training + fine-tuning loops
+    ├── evaluation.py      # perplexity / BPC / Distinct-N comparison
+    └── artifacts/         # checkpoints (model.pt, gpt2_finetuned/, ...)
+```
 
-- **Token embeddings** (no learned positional embeddings — uses RoPE)
-- **N decoder blocks**: pre-norm → causal multi-head self-attention → SwiGLU feedforward (4× expansion)
-- **Output**: LayerNorm → linear projection to vocab logits (weight-tied with token embedding)
-
-Key hyperparameters (configurable via YAML):
-
-| Parameter | Default |
-|---|---|
-| `vocab_size` | 5 000–16 000 |
-| `block_size` | 128–256 |
-| `n_layer` | 4–6 |
-| `n_head` | 4–8 |
-| `n_embd` | 256 |
-| `dropout` | 0.05–0.30 |
-
-Three parallel implementations live in `woolfnet/gpt/`:
-
-| File | Framework | Status |
-|---|---|---|
-| `model.py` | PyTorch | Active |
-| `model_jax.py` | JAX + Flax Linen | Legacy |
-| `model_nnx.py` | JAX + Flax NNX | Preferred JAX backend |
+Generation logic lives in `gpt/utils.py` and is shared by training (sample previews) and inference (the API).
 
 ## Setup
 
-Requires Python 3.12+.
+Python 3.12+.
 
 ```bash
 pip install -e .[test]
 ```
 
-This installs the `woolf` CLI entry point.
+This installs the `woolf` CLI.
 
-## Full Pipeline
-
-### 1. Download raw texts
+## Training pipeline
 
 ```bash
-woolf data download-raw
-```
-
-Downloads Woolf's works from Project Gutenberg Australia to `woolfnet/data/raw/`.
-
-### 2. Clean raw texts
-
-```bash
-woolf data clean-raw-data
-```
-
-Outputs cleaned texts to `woolfnet/data/cleaned/`.
-
-### 3. Build corpus
-
-```bash
-woolf data build-corpus --style both   # novel | essay | both
-```
-
-Outputs a single `.txt` corpus to `woolfnet/data/corpora/`.
-
-### 4. Train BPE tokenizer
-
-```bash
+woolf data download-raw                                  # Project Gutenberg AU → data/raw/
+woolf data clean-raw-data                                # → data/cleaned/
+woolf data build-corpus --style both                     # → data/corpora/woolf_both_corpus.txt
 woolf tokenizer train-bpe \
-  --corpus woolfnet/data/corpora/woolf_both_corpus.txt \
-  --vocab-size 5000
-```
-
-Saves `vocab.json` + `merges.txt` to `woolfnet/data/tokenizers/woolf_both_corpus/`.
-
-### 5. Prepare HDF5 dataset
-
-```bash
+  --corpus data/corpora/woolf_both_corpus.txt \
+  --vocab-size 16000                                     # → data/tokenizers/woolf_both_corpus/
 woolf data prepare-dataset \
-  --corpus woolfnet/data/corpora/woolf_both_corpus.txt \
-  --tokenizer woolfnet/data/tokenizers/woolf_both_corpus \
-  --block-size 128
+  --corpus data/corpora/woolf_both_corpus.txt \
+  --tokenizer data/tokenizers/woolf_both_corpus \
+  --block-size 256                                       # → data/datasets/*.hdf5
 ```
 
-Produces `woolfnet/data/datasets/woolf_both_corpus_dataset.hdf5` with `inputs` and `labels` tensors of shape `[num_blocks, block_size - 1]`.
+CLI paths are relative to the working directory; run from `woolfnet/` (per the existing convention) or pass absolute paths.
 
-### 6a. Train — PyTorch
+### Train scratch model (PyTorch)
 
 ```bash
 woolf gpt train \
-  --model-config woolfnet/gpt/configs/gpt_base.yml \
-  --training-config woolfnet/gpt/configs/training_config.yml \
-  --disable-logging
+  --model-config gpt/configs/gpt_base.yml \
+  --training-config gpt/configs/training_config.yml
 ```
 
-### 6b. Train — JAX NNX (preferred JAX backend)
+### Fine-tune GPT-2 on Woolf
 
 ```bash
-woolf gpt train_jax_nnx \
-  --config woolfnet/gpt/configs/training_config_jax.yml \
-  --disable-logging
+woolf gpt finetune --config gpt/configs/training_config_finetune.yml
 ```
 
-Omit `--disable-logging` to track metrics and artifacts with MLflow (stored locally at `woolfnet/data/mlruns`).
+Drop `--disable-logging` to track runs in local MLflow (`data/mlruns/`). With logging on, training artifacts (model weights + tokenizer + GPT config for scratch runs; the full HuggingFace `save_pretrained` directory for fine-tunes) are uploaded as MLflow artifacts. The inference layer can then load them by run ID or versioned name — see [`woolfnet/configs/inference.yml`](woolfnet/configs/inference.yml).
 
-## Project Layout
+### Compare models
 
+```bash
+woolf gpt evaluate \
+  --our-model-weights gpt/artifacts/model_weights/model.pt \
+  --finetuned-model gpt/artifacts/gpt2_finetuned/<run>/
 ```
-woolfnet/
-├── cli.py                    # Click CLI entry point
-├── config.py                 # YAML config loader (attribute-accessible)
-├── paths.py                  # ROOT_DIR, DATA_DIR, MLFLOW_LOCAL_URI
-├── data/
-│   ├── tasks.py              # download, clean, corpus build, dataset prep
-│   ├── dataset.py            # CorpusDataset + DataLoader
-│   └── utils.py
-├── tokenization/
-│   └── tasks.py              # BPE tokenizer training (HuggingFace tokenizers)
-├── gpt/
-│   ├── config.py             # GPTConfig dataclass
-│   ├── model.py              # PyTorch GPT
-│   ├── model_jax.py          # JAX/Flax Linen GPT (legacy)
-│   ├── model_nnx.py          # JAX/Flax NNX GPT (preferred)
-│   ├── training.py           # Training loop
-│   ├── evaluation.py         # Perplexity + cross-entropy evaluation
-│   ├── metrics.py            # Metric helpers
-│   ├── tasks.py              # CLI task wrappers
-│   ├── utils.py
-│   ├── __init__.py           # LR_SCHEDULER_REGISTRY, ACTIVATION_REGISTRY, etc.
-│   ├── configs/
-│   │   ├── gpt_base.yml
-│   │   ├── training_config.yml
-│   │   └── training_config_jax.yml
-│   └── artifacts/            # Saved model checkpoints
-└── utils/
-    ├── data.py
-    ├── general.py
-    └── mlflow.py
+
+Reports perplexity, bits-per-character, and Distinct-1/2 lexical diversity.
+
+## Serving — FastAPI
+
+```bash
+woolf serve            # listens on :8000
 ```
+
+Endpoints:
+- `GET /health` — liveness.
+- `GET /models` — list backends and load state.
+- `POST /generate` — generate text.
+
+```bash
+curl -s -X POST http://localhost:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt": "Mrs Dalloway said", "model": "gpt2-woolf", "max_new_tokens": 60, "temperature": 0.8}'
+```
+
+```json
+{
+  "model": "gpt2-woolf",
+  "prompt": "Mrs Dalloway said",
+  "generated_text": "Mrs Dalloway said she would buy the flowers herself. She stopped in front of her little bedroom at dusk..."
+}
+```
+
+Models are loaded lazily on first request and cached for the lifetime of the process. `temperature` is clamped to `(0, 2]` and `max_new_tokens` to `[1, 512]`.
+
+## UI — Gradio
+
+```bash
+woolf ui               # listens on :7860, calls WOOLFNET_API_URL (default http://localhost:8000)
+```
+
+Prompt box, model dropdown, temperature + max-tokens sliders. Talks to the FastAPI backend over HTTP so the two are independently scalable / restartable.
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+Two services come up:
+
+- `api` on `http://localhost:8000`
+- `ui`  on `http://localhost:7860`
+
+Volumes mount `gpt/artifacts` and `data/tokenizers` from the host so checkpoints persist across rebuilds. The HuggingFace cache is on a named volume to avoid re-downloading `gpt2` on every restart.
+
+CPU-only torch is installed inside the image to keep size reasonable (~1.5 GB instead of ~3 GB). For GPU use, swap the torch wheel in the Dockerfile.
+
+## Example outputs
+
+Prompt: *"Mrs Dalloway said she would buy the flowers herself."*
+
+- **gpt2-woolf**: *"She stopped in front of her little bedroom at dusk and turned to Mrs Riddell, who had already opened a door on top of it without him noticing; then suddenly there was nothing else but white..."*
+- **woolf-scratch**: *"Mrs. Dalloway was at any rate the same. She would have been doubtful whether, from all the evening it was, how she would be killed in them..."*
+
+Both produced at `temperature=0.8`. The scratch model is recognisably Woolf-tinted but locally incoherent; the fine-tuned GPT-2 carries the prior fluency forward.
 
 ## Development
 
 ```bash
-# Lint
 ruff check .
-
-# Format
 ruff format .
-
-# Tests
 pytest
-pytest woolfnet/gpt/tests/test_model.py   # single file
-pytest -k test_gpt_model                  # single test
 ```
 
-## Dependencies
+## Future work
 
-Core: `torch`, `jax`, `flax`, `optax`, `tokenizers`, `h5py`, `mlflow`, `numpy`, `pandas`, `polars`.
+- Beam search / top-k / top-p in the API (currently temperature-only sampling).
+- Streaming generation (`text/event-stream`).
+- A second fine-tune at higher epoch count for a stronger `gpt2-woolf`.
+- Replace the legacy Flax Linen path with a single NNX/PyTorch story.
