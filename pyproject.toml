@@ -36,6 +36,11 @@ test = [
 [project.scripts]
 woolf = "woolfnet.cli:cli"
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires trained artifacts on disk (skip in CI with -m 'not integration')",
+]
+
 [tool.ruff]
 include = ["pyproject.toml", "woolfnet/**/*.py", "woolfnet/*.py"]
 target-version = "py310"

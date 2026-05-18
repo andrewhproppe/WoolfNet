@@ -29,8 +29,15 @@ def custom_config(tmp_path, monkeypatch):
     return _make
 
 
+@pytest.mark.integration
 def test_load_from_mlflow_and_generate():
-    """Resolving ``gpt2-woolf`` by versioned name should produce a real model that generates text."""
+    """Resolving ``gpt2-woolf`` by versioned name should produce a real model that generates text.
+
+    Requires a trained ``gpt2_woolf_0.1.1`` run in the local MLflow store. Skipped by default
+    unless invoked with ``pytest -m integration``.
+
+    (fragile and mostly used for local testing during model development)
+    """
     model = WoolfModel("gpt2-woolf")
     assert model.source == "huggingface"
     out = model.generate("Mrs Dalloway said", max_new_tokens=10, temperature=0.8)
