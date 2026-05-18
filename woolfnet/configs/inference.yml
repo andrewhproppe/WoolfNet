@@ -12,9 +12,7 @@ models:
   woolf-scratch:
     type: torch
     description: GPT decoder trained from scratch on Virginia Woolf's collected works.
-    weights: gpt/artifacts/model_weights/model.pt
-    model_config: gpt/configs/gpt_base.yml
-    tokenizer: data/tokenizers/woolf_both_corpus
+    name: woolfgpt_legacy
 
   gpt2:
     type: huggingface
