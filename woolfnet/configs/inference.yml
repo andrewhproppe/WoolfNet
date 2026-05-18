@@ -1,0 +1,27 @@
+defaults:
+  max_new_tokens: 80
+  temperature: 0.8
+
+# Each entry may source its artifacts three ways:
+#   1. run_id     — an MLflow run UUID (32-hex). Most explicit.
+#   2. name       — an MLflow versioned run name (resolved via params.name).
+#   3. legacy     — explicit local paths (weights/model_config/tokenizer for torch,
+#                   path for huggingface). Kept for entries that predate MLflow logging.
+
+models:
+  woolf-scratch:
+    type: torch
+    description: GPT decoder trained from scratch on Virginia Woolf's collected works.
+    weights: gpt/artifacts/model_weights/model.pt
+    model_config: gpt/configs/gpt_base.yml
+    tokenizer: data/tokenizers/woolf_both_corpus
+
+  gpt2:
+    type: huggingface
+    description: Pretrained HuggingFace GPT-2 (no fine-tuning).
+    path: gpt2
+
+  gpt2-woolf:
+    type: huggingface
+    description: GPT-2 small fine-tuned on Virginia Woolf's collected works.
+    name: gpt2_woolf_0.1.1
