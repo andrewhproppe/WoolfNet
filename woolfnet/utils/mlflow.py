@@ -1,12 +1,35 @@
 import logging
 import re
+import shutil
 import tempfile
+from pathlib import Path
 
 import mlflow
 
 from woolfnet.config import DotDict
+from woolfnet.paths import MLFLOW_LOCAL_ARTIFACTS
 
 logger = logging.getLogger(__name__)
+
+
+def load_mlflow_artifacts(
+    run_id: str, local_artifacts_dir: Path = MLFLOW_LOCAL_ARTIFACTS
+) -> Path:
+    """Return a local directory containing the artifacts for ``run_id``.
+
+    Looks under ``{local_artifacts_dir}/{run_id}/`` first; if present, returns it
+    directly. Otherwise downloads from MLflow and caches it there so subsequent
+    calls hit disk.
+    """
+    if local_artifacts_dir:
+        artifacts_dir = local_artifacts_dir / run_id
+        if artifacts_dir.exists():
+            logger.info(f"Found artifacts locally for run {run_id}")
+            return artifacts_dir
+        download_dir = Path(mlflow.artifacts.download_artifacts(run_id=run_id))
+        shutil.copytree(download_dir, artifacts_dir)
+        return artifacts_dir
+    return Path(mlflow.artifacts.download_artifacts(run_id=run_id))
 
 
 def resolve_run_id(value: str, experiment_name: str | None = None) -> str:

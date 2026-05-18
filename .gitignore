@@ -11,3 +11,4 @@
 /woolfnet/**/*.pt
 /woolfnet/**/*.json
 /woolfnet/**/*.yml
+/woolfnet/**/*.safetensors

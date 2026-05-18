@@ -57,10 +57,16 @@ def train(model_config: Path, training_config: Path, model_name: str, disable_lo
     """
     Train a small GPT model on a Woolf corpus.
     """
-
-    # Load the configs
+    model_config_path = model_config
     model_config = load_yaml(model_config)
     training_config = load_yaml(training_config)
+    training_config.name = model_name or getattr(training_config, "name", "woolfgpt")
+
+    # Configuring MLflow, logging, and model versioning
+    configure_mlflow("gpt", set_null=disable_logging)
+    model_name, training_config = make_versioned_model_name(
+        training_config, set_null=disable_logging
+    )
 
     val_split = getattr(training_config.hparams, "val_split", 0.0)
     dataset = CorpusDataset(
@@ -79,15 +85,13 @@ def train(model_config: Path, training_config: Path, model_name: str, disable_lo
     )
     logger.info(f"Training with device: {device}")
 
-    # Instantiate the model
     model = GPTTorch(GPTConfig(**model_config.model_params.to_dict())).to(device)
 
-    # Set up optimizer — weight_decay=0.1 follows GPT-2 convention
+    # weight_decay=0.1; follows GPT-2 convention
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=training_config.hparams.lr, weight_decay=0.1
     )
 
-    # Get lr scheduler
     if training_config.lr_scheduler is not None:
         lr_scheduler = LR_SCHEDULER_REGISTRY[training_config.lr_scheduler.name](
             optimizer, **training_config.lr_scheduler.args.to_dict()
@@ -97,13 +101,16 @@ def train(model_config: Path, training_config: Path, model_name: str, disable_lo
 
     lr_scheduling = {"scheduler": lr_scheduler, "warmup": training_config.lr_warmup}
 
-    # Load tokenizer for checking samples during training
     tokenizer = ByteLevelBPETokenizer(
         training_config.tokenizer + "/vocab.json",
         training_config.tokenizer + "/merges.txt",
     )
 
-    with mlflow.start_run(run_name=model_name) if not disable_logging else nullcontext() as run:
+    with mlflow.start_run(run_name=model_name):
+        mlflow.log_param("name", model_name)
+        if not disable_logging:
+            mlflow.log_text(Path(model_config_path).read_text(), "gpt_config.yml")
+            mlflow.log_artifacts(str(training_config.tokenizer), artifact_path="tokenizer")
         gpt_training_loop(
             model=model,
             train_loader=train_loader,

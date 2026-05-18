@@ -130,8 +130,11 @@ def gpt_training_loop(
             if avg_val_loss < best_val_loss - early_stopping_min_delta:
                 best_val_loss = avg_val_loss
                 no_improve_count = 0
-                torch.save(model.state_dict(), weights_dir / "model.pt")
+                weights_path = weights_dir / "model.pt"
+                torch.save(model.state_dict(), weights_path)
                 logger.info(f"Val loss improved to {avg_val_loss:.4f} — model saved")
+                if not disable_logging:
+                    mlflow.log_artifact(str(weights_path))
             else:
                 no_improve_count += 1
 
@@ -392,6 +395,8 @@ def gpt_finetune_loop(
                 if model_save_dir is not None:
                     model.save_pretrained(model_save_dir)
                     logger.info(f"Val loss improved to {avg_val_loss:.4f} — model saved")
+                    if not disable_logging:
+                        mlflow.log_artifacts(str(model_save_dir))
             else:
                 no_improve_count += 1
 
