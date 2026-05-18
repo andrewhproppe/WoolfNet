@@ -1,0 +1,26 @@
+services:
+  api:
+    build: .
+    image: woolfnet:latest
+    command: ["woolf", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./woolfnet/gpt/artifacts:/app/woolfnet/gpt/artifacts
+      - ./woolfnet/data/tokenizers:/app/woolfnet/data/tokenizers
+      - ./woolfnet/data/mlruns:/app/woolfnet/data/mlruns
+      - ./woolfnet/data/mlflow_artifacts:/app/woolfnet/data/mlflow_artifacts
+      - hf-cache:/root/.cache/huggingface
+
+  ui:
+    image: woolfnet:latest
+    command: ["woolf", "ui", "--host", "0.0.0.0", "--port", "7860"]
+    environment:
+      WOOLFNET_API_URL: http://api:8000
+    ports:
+      - "7860:7860"
+    depends_on:
+      - api
+
+volumes:
+  hf-cache:
