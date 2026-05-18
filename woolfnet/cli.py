@@ -3,6 +3,7 @@ import logging
 import click
 import mlflow
 
+from woolfnet.app.tasks import COMMANDS as app_commands
 from woolfnet.data.tasks import COMMANDS as data_commands
 from woolfnet.gpt.tasks import COMMANDS as gpt_commands
 from woolfnet.paths import MLFLOW_LOCAL_URI
@@ -13,6 +14,7 @@ COMMAND_MAP = {
     "data": data_commands,
     "tokenizer": tokenizer_commands,
     "gpt": gpt_commands,
+    "app": app_commands,
 }
 
 
@@ -73,3 +75,7 @@ def gpt():
 
 for command in COMMAND_MAP["gpt"].values():
     gpt.add_command(command)
+
+
+for command in COMMAND_MAP["app"].values():
+    cli.add_command(command)
