@@ -120,6 +120,7 @@ def train(model_config: Path, training_config: Path, model_name: str, disable_lo
             device=device,
             tokenizer=tokenizer,
             num_epochs=training_config.hparams.epochs,
+            model_name=model_name,
             early_stopping_patience=getattr(training_config.hparams, "early_stopping_patience", 0),
             early_stopping_min_delta=getattr(
                 training_config.hparams, "early_stopping_min_delta", 0.0

@@ -49,10 +49,12 @@ def gpt_training_loop(
     device,
     tokenizer,
     num_epochs,
+    model_name: str,
     early_stopping_patience: int = 0,
     early_stopping_min_delta: float = 0.0,
     disable_logging: bool = False,
 ):
+    """Train ``model`` and save the best-val checkpoint to scratch/``model_name``/model.pt."""
     lr_scheduler = lr_scheduling["scheduler"]
     base_lr = optimizer.param_groups[0]["lr"]
     warmup_epochs = lr_scheduling["warmup"].warmup_epochs
@@ -62,7 +64,7 @@ def gpt_training_loop(
     best_val_loss = float("inf")
     no_improve_count = 0
 
-    weights_dir = Path(GPT_ARTIFACTS / "model_weights")
+    weights_dir = GPT_ARTIFACTS / "scratch" / model_name
     weights_dir.mkdir(exist_ok=True, parents=True)
 
     with Live(progress, refresh_per_second=5):
