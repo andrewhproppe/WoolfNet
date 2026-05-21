@@ -103,7 +103,7 @@ class WoolfModel:
         )
 
     def _load_huggingface(self, spec: DotDict) -> None:
-        from transformers import GPT2LMHeadModel, GPT2Tokenizer
+        from transformers import AutoModelForCausalLM, AutoTokenizer
 
         if self._is_mlflow_spec(spec):
             path = str(self._mlflow_artifact_dir(spec))
@@ -111,9 +111,9 @@ class WoolfModel:
             resolved = self._resolve(spec.path)
             path = str(resolved) if resolved.exists() else spec.path
 
-        self.model = GPT2LMHeadModel.from_pretrained(path).to(self.device)
+        self.model = AutoModelForCausalLM.from_pretrained(path).to(self.device)
         self.model.eval()
-        self.tokenizer = GPT2Tokenizer.from_pretrained(path)
+        self.tokenizer = AutoTokenizer.from_pretrained(path)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     @classmethod

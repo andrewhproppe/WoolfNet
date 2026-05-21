@@ -21,5 +21,10 @@ models:
 
   gpt2-woolf:
     type: huggingface
-    description: GPT-2 small fine-tuned on Virginia Woolf's collected works.
+    description: GPT-2 small fine-tuned on Virginia Woolf's collected works (1 epoch).
     name: gpt2_woolf_0.1.1
+
+  gpt2-woolf-deep:
+    type: huggingface
+    description: GPT-2 small fine-tuned on Virginia Woolf's collected works (5 epochs, deeper drift).
+    name: gpt2_woolf_0.2.1
