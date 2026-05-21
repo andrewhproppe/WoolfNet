@@ -10,6 +10,8 @@ services:
       - ./woolfnet/data/tokenizers:/app/woolfnet/data/tokenizers
       - ./woolfnet/data/mlruns:/app/woolfnet/data/mlruns
       - ./woolfnet/data/mlflow_artifacts:/app/woolfnet/data/mlflow_artifacts
+      - ./woolfnet/data/corpora:/app/woolfnet/data/corpora
+      - ./woolfnet/data/embeddings:/app/woolfnet/data/embeddings
       - hf-cache:/root/.cache/huggingface
 
   ui:

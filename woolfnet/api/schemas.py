@@ -32,3 +32,34 @@ class ModelsResponse(BaseModel):
     """Response body for ``GET /models``."""
 
     models: list[ModelInfo]
+
+
+class ProjectionResponse(BaseModel):
+    """Response body for ``GET /embeddings/projection``."""
+
+    tokens: list[str]
+    projection: list[list[float]]  # shape: (N, n_components)
+    cluster_layers: list[list[int]]  # finest-grained layer first; -1 marks noise
+    membership_layers: list[list[float]]  # per-token cluster confidence 0-1, parallel to layers
+
+
+class NeighborsRequest(BaseModel):
+    """Request body for ``POST /embeddings/neighbors``."""
+
+    model: str
+    query: str = Field(..., min_length=1, max_length=200)
+    k: int = Field(8, ge=1, le=50)
+
+
+class NeighborInfo(BaseModel):
+    """A single neighbor entry — the matched token and its cosine similarity."""
+
+    token: str
+    similarity: float
+
+
+class NeighborsResponse(BaseModel):
+    """Response body for ``POST /embeddings/neighbors``."""
+
+    tokenized_pieces: list[str]
+    neighbors_per_piece: dict[str, list[NeighborInfo]]
